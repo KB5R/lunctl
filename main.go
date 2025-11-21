@@ -24,8 +24,46 @@ type LUN struct {
 }
 
 func main() {
-	fmt.Println("=== LUN CTL ===")
+	var command string
+	if len(os.Args) > 1 {
+		command = os.Args[1]
+	}
+	if command == "man" {
+		printMan()
+		return
+	}
+	luns := parseMultipath()
 
+	if command == "show" {
+		printShow(luns)
+		return
+	}
+}
+
+func printMan() {
+	fmt.Println("lunctl - Tools управления лунами ")
+	fmt.Println("Доступные ключи")
+	fmt.Println("man - Выводит мануал управления ")
+	fmt.Println("show - Выводит подробный данные luns ")
+}
+
+func printShow(luns []LUN) {
+	for _, lun := range luns {
+		fmt.Printf("----------------------------------------------")
+		fmt.Printf("\nLUN: %s\n", lun.Name)
+		fmt.Printf("  WWID: %s\n", lun.WWID)
+		fmt.Printf("  Device: %s\n", lun.Device)
+		fmt.Printf("  Vendor: %s\n", lun.Vendor)
+		fmt.Printf("  Total paths: %d\n", len(lun.Paths))
+
+		for i, path := range lun.Paths {
+			fmt.Printf("    Path %d: %s (%s)\n", i+1, path.Device, path.Status)
+
+		}
+	}
+}
+
+func parseMultipath() []LUN {
 	var luns []LUN
 	var currentLUN *LUN
 
@@ -77,38 +115,5 @@ func main() {
 		luns = append(luns, *currentLUN)
 	}
 
-	var command string
-	if len(os.Args) > 1 {
-		command = os.Args[1]
-	}
-	if command == "man" {
-		printMan()
-		return
-	}
-	if command == "show" {
-		printShow(luns)
-		return
-	}
-}
-
-func printMan() {
-	fmt.Println("lunctl - Tools управления лунами ")
-	fmt.Println("Доступные ключи")
-	fmt.Println("man - Выводит мануал управления ")
-	fmt.Println("show - Выводит подробный данные о luns ")
-}
-
-func printShow(luns []LUN) {
-	for _, lun := range luns {
-		fmt.Printf("\nLUN: %s\n", lun.Name)
-		fmt.Printf("  WWID: %s\n", lun.WWID)
-		fmt.Printf("  Device: %s\n", lun.Device)
-		fmt.Printf("  Vendor: %s\n", lun.Vendor)
-		fmt.Printf("  Total paths: %d\n", len(lun.Paths))
-
-		for i, path := range lun.Paths {
-			fmt.Printf("    Path %d: %s (%s)\n", i+1, path.Device, path.Status)
-
-		}
-	}
+	return luns
 }
