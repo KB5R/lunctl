@@ -48,10 +48,9 @@ func printMan() {
 	fmt.Printf("%-8s | %-40s\n", "Key", "Value")
 	fmt.Println(strings.Repeat("-", 50))
 	fmt.Printf("%-8s | %-40s\n", "lunctl", "Tools управления лунами")
-	fmt.Println("Доступные ключи")
-	fmt.Println("man - Выводит мануал управления")
-	fmt.Println("show - Выводит подробный данные luns")
-	fmt.Println("list")
+	fmt.Printf("%-8s | %-40s\n", "man", "Выводит мануал управления")
+	fmt.Printf("%-8s | %-40s\n", "show", "Выводит подробный данные luns")
+	fmt.Printf("%-8s | %-40s\n", "list", "Выводит построчно информацию о каждом luns")
 }
 
 func parseMultipath() []LUN {
