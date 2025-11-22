@@ -20,6 +20,7 @@ type LUN struct {
 	WWID   string // 3600..
 	Device string // dm-0
 	Vendor string // LIO-ORG,lun01
+	Size   string // SIZE.. Luns
 	Paths  []Path // список путей
 }
 
@@ -38,35 +39,24 @@ func main() {
 		printShow(luns)
 		return
 	}
+	if command == "list" {
+		printList(luns)
+	}
 }
 
 func printMan() {
-	fmt.Println("lunctl - Tools управления лунами ")
+	fmt.Printf("%-8s | %-40s\n", "Key", "Value")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Printf("%-8s | %-40s\n", "lunctl", "Tools управления лунами")
 	fmt.Println("Доступные ключи")
-	fmt.Println("man - Выводит мануал управления ")
-	fmt.Println("show - Выводит подробный данные luns ")
-}
-
-func printShow(luns []LUN) {
-	for _, lun := range luns {
-		fmt.Printf("----------------------------------------------")
-		fmt.Printf("\nLUN: %s\n", lun.Name)
-		fmt.Printf("  WWID: %s\n", lun.WWID)
-		fmt.Printf("  Device: %s\n", lun.Device)
-		fmt.Printf("  Vendor: %s\n", lun.Vendor)
-		fmt.Printf("  Total paths: %d\n", len(lun.Paths))
-
-		for i, path := range lun.Paths {
-			fmt.Printf("    Path %d: %s (%s)\n", i+1, path.Device, path.Status)
-
-		}
-	}
+	fmt.Println("man - Выводит мануал управления")
+	fmt.Println("show - Выводит подробный данные luns")
+	fmt.Println("list")
 }
 
 func parseMultipath() []LUN {
 	var luns []LUN
 	var currentLUN *LUN
-
 	cmd := exec.Command("multipath", "-ll")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -78,6 +68,7 @@ func parseMultipath() []LUN {
 	pathCount := 0
 
 	for _, line := range lines {
+		// Парсим основную строку LUN
 		if strings.HasPrefix(line, "mpath") {
 			if currentLUN != nil {
 				luns = append(luns, *currentLUN)
@@ -88,15 +79,25 @@ func parseMultipath() []LUN {
 				WWID:   strings.Trim(parts[1], "()"),
 				Device: parts[2],
 				Vendor: parts[3],
+				Size:   "", // ← ИСПРАВЛЕНО: пустая строка, заполним потом
 				Paths:  []Path{},
 			}
 			pathCount = 0
-		}
-		if strings.Contains(line, "|-") || strings.Contains(line, "`-") {
+		} else if currentLUN != nil && strings.Contains(line, "size=") {
+			// Парсим строку с размером
 			parts := strings.Fields(line)
-
+			for _, part := range parts {
+				if strings.HasPrefix(part, "size=") {
+					currentLUN.Size = strings.TrimPrefix(part, "size=")
+					break
+				}
+			}
+		} else if currentLUN != nil && (strings.Contains(line, "|-") || strings.Contains(line, "`-")) {
+			// ← ИСПРАВЛЕНО: добавил else if, теперь это внутри цикла!
+			parts := strings.Fields(line)
 			for i, part := range parts {
-				if strings.HasPrefix(part, "sd") || strings.HasPrefix(part, "vd") || strings.HasPrefix(part, "nd") || strings.HasPrefix(part, "nvme") {
+				if strings.HasPrefix(part, "sd") || strings.HasPrefix(part, "vd") ||
+					strings.HasPrefix(part, "nd") || strings.HasPrefix(part, "nvme") {
 					path := Path{
 						Device: part,
 					}
@@ -109,11 +110,39 @@ func parseMultipath() []LUN {
 				}
 			}
 		}
-	}
+	} // ← Закрывающая скобка цикла for
 
+	// Добавляем последний LUN
 	if currentLUN != nil {
 		luns = append(luns, *currentLUN)
 	}
 
 	return luns
+}
+
+func printShow(luns []LUN) {
+	for _, lun := range luns {
+		fmt.Printf("----------------------------------------------")
+		fmt.Printf("\nLUN: %s\n", lun.Name)
+		fmt.Printf("  WWID: %s\n", lun.WWID)
+		fmt.Printf("  Size: %s\n", lun.Size)
+		fmt.Printf("  Device: %s\n", lun.Device)
+		fmt.Printf("  Vendor: %s\n", lun.Vendor)
+		fmt.Printf("  Total paths: %d\n", len(lun.Paths))
+
+		for i, path := range lun.Paths {
+			fmt.Printf("    Path %d: %s (%s)\n", i+1, path.Device, path.Status)
+
+		}
+	}
+}
+
+func printList(luns []LUN) {
+	fmt.Printf("%-8s | %-40s | %-5s | %-6s\n", "Name", "WWID", "Paths", "Size")
+	fmt.Println(strings.Repeat("-", 70))
+
+	for _, lun := range luns {
+		fmt.Printf("%-8s | %-40s | %-5d | %-6s\n",
+			lun.Name, lun.WWID, len(lun.Paths), lun.Size)
+	}
 }
